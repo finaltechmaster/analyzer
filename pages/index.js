@@ -40,7 +40,7 @@ export default function Home() {
     const options = {
       method: 'GET',
       url: 'https://tiktok-video-no-watermark2.p.rapidapi.com/user/info',
-      params: {unique_id: username, hd: '1'},
+      params: { unique_id: username, hd: '1' },
       headers: {
         'X-RapidAPI-Key': RAPIDAPI_KEY,
         'X-RapidAPI-Host': RAPIDAPI_HOST
@@ -55,7 +55,7 @@ export default function Home() {
     const options = {
       method: 'GET',
       url: 'https://tiktok-video-no-watermark2.p.rapidapi.com/user/posts',
-      params: {unique_id: username, count: count},
+      params: { unique_id: username, count: count },
       headers: {
         'X-RapidAPI-Key': RAPIDAPI_KEY,
         'X-RapidAPI-Host': RAPIDAPI_HOST
@@ -69,23 +69,50 @@ export default function Home() {
   const toggleVideoSelection = async (index) => {
     const newSelectedVideos = [...selectedVideos];
     const videoIndex = newSelectedVideos.findIndex(v => v.video_id === videos[index].video_id);
-    
+
     if (videoIndex > -1) {
       newSelectedVideos.splice(videoIndex, 1);
     } else {
       const video = videos[index];
       if (!video.transcription) {
-        video.transcription = await simulateTranscription(video.title);
+        try {
+          console.log('Attempting to transcribe video:', video.title);
+          console.log('Video URL:', video.play);
+
+          const transcriptionStart = Date.now();
+          const response = await fetch('http://localhost:5000/transcribe', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ file_url: video.play }),
+          });
+
+          console.log('Response status:', response.status);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          const transcriptionDuration = Date.now() - transcriptionStart;
+
+          console.log('Transkriptionsantwort:', data);
+          console.log('Transkriptionsdauer:', transcriptionDuration, 'ms');
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          video.transcription = data.text || 'Keine Transkription verfügbar';
+        } catch (error) {
+          console.error('Transkriptionsfehler:', error);
+          video.transcription = `Fehler bei der Transkription: ${error.message}`;
+        }
       }
       newSelectedVideos.push(video);
     }
-    
-    setSelectedVideos(newSelectedVideos);
-  };
 
-  const simulateTranscription = async (videoTitle) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return `Transkription für "${videoTitle}": Dies ist eine simulierte Transkription des Videos. In einem realen Szenario würde hier der tatsächliche Inhalt des Videos stehen, transkribiert von einer KI.`;
+    setSelectedVideos(newSelectedVideos);
   };
 
   const analyzeSelectedVideos = () => {
@@ -118,7 +145,8 @@ export default function Home() {
         Object.entries(keywordCounts).map(([trait, count]) => [trait, (count / wordCount * 100).toFixed(2) + '%'])
       ),
       contentType: determineDominantContentType(keywordCounts),
-      averageVideoLength: (videos.reduce((sum, video) => sum + (video.duration || 0), 0) / videos.length).toFixed(2) + ' Sekunden'
+      averageVideoLength: (videos.reduce((sum, video) => sum + (video.duration || 0), 0) / videos.length).toFixed(2) + ' Sekunden',
+      wordCount: wordCount
     };
   };
 
@@ -127,7 +155,7 @@ export default function Home() {
     const dominantTypes = Object.entries(keywordCounts)
       .filter(([, count]) => count === maxCount)
       .map(([type]) => type);
-    
+
     return dominantTypes.length > 1 ? 'Gemischt' : dominantTypes[0];
   };
 
