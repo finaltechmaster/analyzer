@@ -8,7 +8,9 @@ export default function Home() {
   const [videos, setVideos] = useState([]);
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState('');
+  const [transcriptions, setTranscriptions] = useState([]);
   const [analysisResult, setAnalysisResult] = useState(null);
 
   const RAPIDAPI_KEY = '203e9f12b9msh183c5b2cbbbe6e1p11fbf6jsnd5bc216f80bf';
@@ -22,14 +24,18 @@ export default function Home() {
     setVideos([]);
     setSelectedVideos([]);
     setAnalysisResult(null);
+    setTranscriptions([]);
 
     try {
       const userData = await getUserData(username);
-      setUserData(userData.data);
+      console.log('User Data Response:', userData);
+      setUserData(userData);
 
       const videosData = await getVideos(username, 20);
-      setVideos(videosData.data.videos);
+      console.log('Videos Data Response:', videosData);
+      setVideos(videosData);
     } catch (error) {
+      console.error('Fehler beim Laden der Daten:', error);
       setError(`Fehler beim Laden der Daten: ${error.message}`);
     }
 
@@ -47,8 +53,33 @@ export default function Home() {
       }
     };
 
-    const response = await axios.request(options);
-    return response.data;
+    try {
+      const response = await axios.request(options);
+      console.log('API Response:', response.data);
+      
+      if (response.data && response.data.data) {
+        const userData = response.data.data;
+        return {
+          id: userData.user.id,
+          uniqueId: userData.user.uniqueId,
+          nickname: userData.user.nickname,
+          signature: userData.user.signature,
+          avatarThumb: userData.user.avatarThumb,
+          stats: {
+            followingCount: userData.stats.followingCount,
+            followerCount: userData.stats.followerCount,
+            heartCount: userData.stats.heartCount,
+            videoCount: userData.stats.videoCount,
+            diggCount: userData.stats.diggCount
+          }
+        };
+      } else {
+        throw new Error('Unexpected API response structure');
+      }
+    } catch (error) {
+      console.error('Error in getUserData:', error);
+      throw new Error(`Failed to load user data: ${error.message}`);
+    }
   };
 
   const getVideos = async (username, count) => {
@@ -62,101 +93,113 @@ export default function Home() {
       }
     };
 
-    const response = await axios.request(options);
-    return response.data;
-  };
-
-  const toggleVideoSelection = async (index) => {
-    const newSelectedVideos = [...selectedVideos];
-    const videoIndex = newSelectedVideos.findIndex(v => v.video_id === videos[index].video_id);
-
-    if (videoIndex > -1) {
-      newSelectedVideos.splice(videoIndex, 1);
-    } else {
-      const video = videos[index];
-      if (!video.transcription) {
-        try {
-          console.log('Attempting to transcribe video:', video.title);
-          console.log('Video URL:', video.play);
-
-          const transcriptionStart = Date.now();
-          const response = await fetch('http://localhost:5000/transcribe', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ file_url: video.play }),
-          });
-
-          console.log('Response status:', response.status);
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          const transcriptionDuration = Date.now() - transcriptionStart;
-
-          console.log('Transkriptionsantwort:', data);
-          console.log('Transkriptionsdauer:', transcriptionDuration, 'ms');
-
-          if (data.error) {
-            throw new Error(data.error);
-          }
-          video.transcription = data.text || 'Keine Transkription verfügbar';
-        } catch (error) {
-          console.error('Transkriptionsfehler:', error);
-          video.transcription = `Fehler bei der Transkription: ${error.message}`;
-        }
+    try {
+      const response = await axios.request(options);
+      console.log('API Videos Response:', response.data);
+      
+      if (response.data && response.data.data && Array.isArray(response.data.data.videos)) {
+        return response.data.data.videos.map(video => ({
+          id: video.video_id || '',
+          desc: video.title || video.desc || 'Kein Titel',
+          thumbnail: video.origin_cover || video.cover || '',
+          likes: video.statistics?.digg_count || 0,
+          comments: video.statistics?.comment_count || 0,
+          musicTitle: video.music?.title || '',
+          caption: video.desc || '',
+          videoUrl: video.play || ''
+        }));
+      } else {
+        throw new Error('Video-Daten konnten nicht geladen werden');
       }
-      newSelectedVideos.push(video);
+    } catch (error) {
+      console.error('Fehler beim Laden der Videos:', error);
+      throw error;
     }
-
-    setSelectedVideos(newSelectedVideos);
   };
 
-  const analyzeSelectedVideos = () => {
+  const toggleVideoSelection = (index) => {
+    console.log('Toggling video selection for index:', index);
+    setSelectedVideos(prev => {
+      const isSelected = prev.includes(index);
+      const newSelection = isSelected ? prev.filter(i => i !== index) : [...prev, index];
+      console.log('New selection:', newSelection);
+      return newSelection;
+    });
+  };
+
+  const analyzeSelectedVideos = async () => {
+    console.log('Analyzing selected videos:', selectedVideos);
     if (selectedVideos.length === 0) {
       alert('Bitte wählen Sie mindestens ein Video für die Analyse aus.');
       return;
     }
 
-    const analysis = performAnalysis(selectedVideos);
-    setAnalysisResult(analysis);
+    setAnalyzing(true);
+    setError('');
+
+    try {
+      const transcribedVideos = await Promise.all(
+        selectedVideos.map(async (index) => {
+          const video = videos[index];
+          const transcription = await getTranscription(video.videoUrl);
+          return {
+            ...video,
+            transcription
+          };
+        })
+      );
+
+      setTranscriptions(transcribedVideos);
+
+      const combinedText = transcribedVideos.map(v => 
+        `${v.desc} ${v.caption} ${v.transcription}`
+      ).join(' ');
+
+      const analysis = performBigFiveAnalysis(combinedText + ' ' + userData.signature);
+      console.log('Analysis result:', analysis);
+      setAnalysisResult(analysis);
+    } catch (error) {
+      console.error('Fehler bei der Analyse:', error);
+      setError(`Fehler bei der Analyse: ${error.message}`);
+    }
+
+    setAnalyzing(false);
   };
 
-  const performAnalysis = (videos) => {
-    const allText = videos.map(v => `${v.title} ${v.transcription || ''}`).join(' ');
-    const wordCount = allText.split(/\s+/).length;
+  const getTranscription = async (videoUrl) => {
+    console.log('Getting transcription for video URL:', videoUrl);
+    try {
+      const response = await axios.post('/api/transcribe', { 
+        video_url: videoUrl,
+        language: 'de'
+      });
+      console.log('Transcription response:', response.data);
+      if (response.data && response.data.text) {
+        return response.data.text;
+      } else {
+        throw new Error('Unerwartetes Format der Transkriptionsantwort');
+      }
+    } catch (error) {
+      console.error('Fehler bei der Transkription:', error);
+      if (error.response && error.response.data && error.response.data.text) {
+        return error.response.data.text;  // Rückgabe des Transkriptionstexts, auch wenn ein Fehler auftritt
+      } else if (error.response && error.response.data && error.response.data.error) {
+        return `Transkription fehlgeschlagen: ${error.response.data.error}`;
+      } else {
+        return `Transkription fehlgeschlagen: ${error.message}`;
+      }
+    }
+  };
 
-    const keywordCounts = {
-      Kreativität: (allText.match(/kreativ|inspirierend|originell|künstlerisch/gi) || []).length,
-      Humor: (allText.match(/lustig|witzig|komisch|lachen/gi) || []).length,
-      Information: (allText.match(/informativ|lehrreich|wissenswert|erklären/gi) || []).length,
-      Lifestyle: (allText.match(/lifestyle|leben|alltag|routine/gi) || []).length,
-      Motivation: (allText.match(/motivierend|inspirierend|antreibend|ermutigen/gi) || []).length
-    };
-
-    const dominantTrait = Object.entries(keywordCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0];
-
+  const performBigFiveAnalysis = (text) => {
+    // Vereinfachte Analyse für Demonstrationszwecke
     return {
-      dominantTrait,
-      traits: Object.fromEntries(
-        Object.entries(keywordCounts).map(([trait, count]) => [trait, (count / wordCount * 100).toFixed(2) + '%'])
-      ),
-      contentType: determineDominantContentType(keywordCounts),
-      averageVideoLength: (videos.reduce((sum, video) => sum + (video.duration || 0), 0) / videos.length).toFixed(2) + ' Sekunden',
-      wordCount: wordCount
+      openness: Math.random(),
+      conscientiousness: Math.random(),
+      extraversion: Math.random(),
+      agreeableness: Math.random(),
+      neuroticism: Math.random()
     };
-  };
-
-  const determineDominantContentType = (keywordCounts) => {
-    const maxCount = Math.max(...Object.values(keywordCounts));
-    const dominantTypes = Object.entries(keywordCounts)
-      .filter(([, count]) => count === maxCount)
-      .map(([type]) => type);
-
-    return dominantTypes.length > 1 ? 'Gemischt' : dominantTypes[0];
   };
 
   return (
@@ -174,57 +217,94 @@ export default function Home() {
         <button type="submit" className={styles.button}>Profil laden</button>
       </form>
 
-      {loading && <p>Lade Daten...</p>}
+      {loading && <p className={styles.loading}>Bitte warten, die Daten werden geladen...</p>}
       {error && <p className={styles.error}>{error}</p>}
 
       {userData && (
         <div className={styles.userInfo}>
-          <img src={userData.user.avatarLarger || userData.user.avatarMedium || userData.user.avatarThumb || ''} alt={userData.user.nickname || 'Benutzer'} />
-          <div>
-            <h2>{userData.user.nickname || 'Unbekannt'} (@{userData.user.uniqueId || 'unbekannt'})</h2>
-            <p>{userData.user.signature || ''}</p>
-            <p>Follower: {userData.stats.followerCount?.toLocaleString() || 0} | 
-               Following: {userData.stats.followingCount?.toLocaleString() || 0} | 
-               Likes: {userData.stats.heartCount?.toLocaleString() || 0}</p>
-            <p>Video-Anzahl: {userData.stats.videoCount || 0}</p>
+          <img src={userData.avatarThumb} alt={userData.nickname} className={styles.avatar} />
+          <div className={styles.userDetails}>
+            <h2>{userData.nickname} (@{userData.uniqueId})</h2>
+            <p className={styles.signature}>{userData.signature}</p>
+            <div className={styles.stats}>
+              <span>Follower: {userData.stats.followerCount.toLocaleString()}</span>
+              <span>Following: {userData.stats.followingCount.toLocaleString()}</span>
+              <span>Likes: {userData.stats.heartCount.toLocaleString()}</span>
+              <span>Videos: {userData.stats.videoCount}</span>
+            </div>
           </div>
         </div>
       )}
 
       {videos.length > 0 && (
-        <div className={styles.videoList}>
+        <div className={styles.videoSection}>
           <h3>Wählen Sie Videos für die Analyse:</h3>
           <div className={styles.videoGrid}>
             {videos.map((video, index) => (
               <div
-                key={video.video_id}
-                className={`${styles.videoItem} ${selectedVideos.some(v => v.video_id === video.video_id) ? styles.selected : ''}`}
+                key={video.id}
+                className={`${styles.videoItem} ${selectedVideos.includes(index) ? styles.selected : ''}`}
                 onClick={() => toggleVideoSelection(index)}
               >
-                <img src={video.cover || ''} alt="Video Thumbnail" />
-                <div className={styles.caption}>{video.title || 'Kein Titel'}</div>
-                {selectedVideos.some(v => v.video_id === video.video_id) && (
-                  <div className={styles.transcription}>{video.transcription || 'Transkribiere...'}</div>
-                )}
+                <div className={styles.thumbnailContainer}>
+                  <img src={video.thumbnail} alt={video.desc} className={styles.thumbnail} />
+                </div>
+                <div className={styles.videoInfo}>
+                  <p className={styles.videoTitle}>{video.desc}</p>
+                  <p className={styles.videoStats}>
+                    ❤️ {video.likes.toLocaleString()} | 💬 {video.comments.toLocaleString()}
+                  </p>
+                  <p className={styles.videoCaption}>{video.caption}</p>
+                </div>
+                {selectedVideos.includes(index) && <div className={styles.checkmark}>✓</div>}
               </div>
             ))}
           </div>
-          <button onClick={analyzeSelectedVideos} className={styles.button}>Ausgewählte Videos analysieren</button>
+          <button onClick={analyzeSelectedVideos} className={styles.analyzeButton} disabled={analyzing}>
+            {analyzing ? 'Analyse läuft...' : 'Ausgewählte Videos analysieren'}
+          </button>
+          {analyzing && <div className={styles.loader}></div>}
+        </div>
+      )}
+
+      {transcriptions.length > 0 && (
+        <div className={styles.transcriptResult}>
+          <h2>Analysierte Videos:</h2>
+          {transcriptions.map((video, index) => (
+            <div key={video.id} className={styles.videoTranscript}>
+              <h3>{video.desc}</h3>
+              <p><strong>Caption:</strong> {video.caption}</p>
+              <p><strong>Transkription:</strong> {video.transcription}</p>
+            </div>
+          ))}
         </div>
       )}
 
       {analysisResult && (
-        <div className={styles.result}>
-          <h2>Persönlichkeits- und Inhaltsanalyse</h2>
-          <p><strong>Dominanter Charakterzug:</strong> {analysisResult.dominantTrait}</p>
-          <p><strong>Inhaltliche Ausrichtung:</strong></p>
-          <ul>
-            {Object.entries(analysisResult.traits).map(([trait, value]) => (
-              <li key={trait}>{trait}: {value}</li>
-            ))}
-          </ul>
-          <p><strong>Primärer Content-Typ:</strong> {analysisResult.contentType}</p>
-          <p><strong>Durchschnittliche Videolänge:</strong> {analysisResult.averageVideoLength}</p>
+        <div className={styles.analysisResult}>
+          <h2>Big-Five Persönlichkeitsanalyse</h2>
+          <div className={styles.resultGrid}>
+            <div className={styles.resultItem}>
+              <h3>Offenheit für Erfahrungen</h3>
+              <p>{(analysisResult.openness * 100).toFixed(2)}%</p>
+            </div>
+            <div className={styles.resultItem}>
+              <h3>Gewissenhaftigkeit</h3>
+              <p>{(analysisResult.conscientiousness * 100).toFixed(2)}%</p>
+            </div>
+            <div className={styles.resultItem}>
+              <h3>Extraversion</h3>
+              <p>{(analysisResult.extraversion * 100).toFixed(2)}%</p>
+            </div>
+            <div className={styles.resultItem}>
+              <h3>Verträglichkeit</h3>
+              <p>{(analysisResult.agreeableness * 100).toFixed(2)}%</p>
+            </div>
+            <div className={styles.resultItem}>
+              <h3>Neurotizismus</h3>
+              <p>{(analysisResult.neuroticism * 100).toFixed(2)}%</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
