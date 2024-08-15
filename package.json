@@ -13,5 +13,12 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-config-next": "latest"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
