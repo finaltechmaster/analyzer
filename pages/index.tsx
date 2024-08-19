@@ -1,22 +1,57 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
+import Image from 'next/image';
 import axios from 'axios';
 import styles from '../styles/Home.module.css';
 
+interface UserData {
+  id: string;
+  uniqueId: string;
+  nickname: string;
+  signature: string;
+  avatarThumb: string;
+  stats: {
+    followingCount: number;
+    followerCount: number;
+    heartCount: number;
+    videoCount: number;
+    diggCount: number;
+  };
+}
+
+interface Video {
+  id: string;
+  desc: string;
+  thumbnail: string;
+  likes: number;
+  comments: number;
+  musicTitle: string;
+  caption: string;
+  videoUrl: string;
+}
+
+interface AnalysisResult {
+  openness: number;
+  conscientiousness: number;
+  extraversion: number;
+  agreeableness: number;
+  neuroticism: number;
+}
+
 export default function Home() {
   const [username, setUsername] = useState('');
-  const [userData, setUserData] = useState(null);
-  const [videos, setVideos] = useState([]);
-  const [selectedVideos, setSelectedVideos] = useState([]);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState('');
-  const [transcriptions, setTranscriptions] = useState([]);
-  const [analysisResult, setAnalysisResult] = useState(null);
+  const [transcriptions, setTranscriptions] = useState<string[]>([]);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
   const RAPIDAPI_KEY = '203e9f12b9msh183c5b2cbbbe6e1p11fbf6jsnd5bc216f80bf';
   const RAPIDAPI_HOST = 'tiktok-video-no-watermark2.p.rapidapi.com';
 
-  const loadUserProfile = async (e) => {
+  const loadUserProfile = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -36,13 +71,13 @@ export default function Home() {
       setVideos(videosData);
     } catch (error) {
       console.error('Fehler beim Laden der Daten:', error);
-      setError(`Fehler beim Laden der Daten: ${error.message}`);
+      setError(`Fehler beim Laden der Daten: ${(error as Error).message}`);
     }
 
     setLoading(false);
   };
 
-  const getUserData = async (username) => {
+  const getUserData = async (username: string): Promise<UserData> => {
     const options = {
       method: 'GET',
       url: 'https://tiktok-video-no-watermark2.p.rapidapi.com/user/info',
@@ -78,11 +113,11 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error in getUserData:', error);
-      throw new Error(`Failed to load user data: ${error.message}`);
+      throw new Error(`Failed to load user data: ${(error as Error).message}`);
     }
   };
 
-  const getVideos = async (username, count) => {
+  const getVideos = async (username: string, count: number): Promise<Video[]> => {
     const options = {
       method: 'GET',
       url: 'https://tiktok-video-no-watermark2.p.rapidapi.com/user/posts',
@@ -98,7 +133,7 @@ export default function Home() {
       console.log('API Videos Response:', response.data);
       
       if (response.data && response.data.data && Array.isArray(response.data.data.videos)) {
-        return response.data.data.videos.map(video => ({
+        return response.data.data.videos.map((video: any) => ({
           id: video.video_id || '',
           desc: video.title || video.desc || 'Kein Titel',
           thumbnail: video.origin_cover || video.cover || '',
@@ -117,7 +152,7 @@ export default function Home() {
     }
   };
 
-  const toggleVideoSelection = (index) => {
+  const toggleVideoSelection = (index: number) => {
     console.log('Toggling video selection for index:', index);
     setSelectedVideos(prev => {
       const isSelected = prev.includes(index);
@@ -149,24 +184,24 @@ export default function Home() {
         })
       );
 
-      setTranscriptions(transcribedVideos);
+      setTranscriptions(transcribedVideos.map(v => v.transcription));
 
       const combinedText = transcribedVideos.map(v => 
         `${v.desc} ${v.caption} ${v.transcription}`
       ).join(' ');
 
-      const analysis = performBigFiveAnalysis(combinedText + ' ' + userData.signature);
+      const analysis = performBigFiveAnalysis(combinedText + ' ' + (userData?.signature || ''));
       console.log('Analysis result:', analysis);
       setAnalysisResult(analysis);
     } catch (error) {
       console.error('Fehler bei der Analyse:', error);
-      setError(`Fehler bei der Analyse: ${error.message}`);
+      setError(`Fehler bei der Analyse: ${(error as Error).message}`);
     }
 
     setAnalyzing(false);
   };
 
-  const getTranscription = async (videoUrl) => {
+  const getTranscription = async (videoUrl: string): Promise<string> => {
     console.log('Getting transcription for video URL:', videoUrl);
     try {
       const response = await axios.post('/api/transcribe', { 
@@ -181,17 +216,17 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Fehler bei der Transkription:', error);
-      if (error.response && error.response.data && error.response.data.text) {
-        return error.response.data.text;  // Rückgabe des Transkriptionstexts, auch wenn ein Fehler auftritt
-      } else if (error.response && error.response.data && error.response.data.error) {
+      if (axios.isAxiosError(error) && error.response?.data?.text) {
+        return error.response.data.text;
+      } else if (axios.isAxiosError(error) && error.response?.data?.error) {
         return `Transkription fehlgeschlagen: ${error.response.data.error}`;
       } else {
-        return `Transkription fehlgeschlagen: ${error.message}`;
+        return `Transkription fehlgeschlagen: ${(error as Error).message}`;
       }
     }
   };
 
-  const performBigFiveAnalysis = (text) => {
+  const performBigFiveAnalysis = (text: string): AnalysisResult => {
     // Vereinfachte Analyse für Demonstrationszwecke
     return {
       openness: Math.random(),
@@ -222,7 +257,13 @@ export default function Home() {
 
       {userData && (
         <div className={styles.userInfo}>
-          <img src={userData.avatarThumb} alt={userData.nickname} className={styles.avatar} />
+          <Image
+            src={userData.avatarThumb}
+            alt={userData.nickname}
+            width={100}
+            height={100}
+            className={styles.avatar}
+          />
           <div className={styles.userDetails}>
             <h2>{userData.nickname} (@{userData.uniqueId})</h2>
             <p className={styles.signature}>{userData.signature}</p>
@@ -247,7 +288,13 @@ export default function Home() {
                 onClick={() => toggleVideoSelection(index)}
               >
                 <div className={styles.thumbnailContainer}>
-                  <img src={video.thumbnail} alt={video.desc} className={styles.thumbnail} />
+                  <Image
+                    src={video.thumbnail}
+                    alt={video.desc}
+                    layout="fill"
+                    objectFit="cover"
+                    className={styles.thumbnail}
+                  />
                 </div>
                 <div className={styles.videoInfo}>
                   <p className={styles.videoTitle}>{video.desc}</p>
@@ -270,11 +317,11 @@ export default function Home() {
       {transcriptions.length > 0 && (
         <div className={styles.transcriptResult}>
           <h2>Analysierte Videos:</h2>
-          {transcriptions.map((video, index) => (
-            <div key={video.id} className={styles.videoTranscript}>
-              <h3>{video.desc}</h3>
-              <p><strong>Caption:</strong> {video.caption}</p>
-              <p><strong>Transkription:</strong> {video.transcription}</p>
+          {transcriptions.map((transcription, index) => (
+            <div key={index} className={styles.videoTranscript}>
+              <h3>{videos[selectedVideos[index]].desc}</h3>
+              <p><strong>Caption:</strong> {videos[selectedVideos[index]].caption}</p>
+              <p><strong>Transkription:</strong> {transcription}</p>
             </div>
           ))}
         </div>
