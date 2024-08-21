@@ -204,7 +204,7 @@ export default function Home() {
   const getTranscription = async (videoUrl: string): Promise<string> => {
     console.log('Getting transcription for video URL:', videoUrl);
     try {
-      const response = await axios.post('/api/transcribe', { 
+      const response = await axios.post('https://finalmaster.pythonanywhere.com/transcribe', { 
         video_url: videoUrl,
         language: 'de'
       });
