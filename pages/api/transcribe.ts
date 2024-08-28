@@ -1,7 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { AssemblyAI } from 'assemblyai';
+import AssemblyAI from 'assemblyai';
 
-const assembly = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY || '' });
+// Log the API key to verify it is being read correctly
+console.log('AssemblyAI API Key:', process.env.ASSEMBLYAI_API_KEY);
+
+const assembly = new AssemblyAI({
+  token: process.env.ASSEMBLYAI_API_KEY || '', // Store your API key in an environment variable
+});
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -11,18 +16,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('Received video URL:', video_url);
       console.log('Language:', language);
 
-      const transcript = await assembly.transcripts.create({
+      const response = await assembly.transcribe({
         audio_url: video_url,
         language_code: language,
       });
 
-      console.log('Transcription response:', transcript);
+      console.log('Transcription response:', response);
 
-      if ('error' in transcript) {
-        return res.status(500).json({ error: transcript.error });
+      if (response.error) {
+        return res.status(500).json({ error: response.error });
       }
 
-      return res.status(200).json(transcript);
+      return res.status(200).json(response);
     } catch (error: any) {
       console.error('Caught error:', error);
       return res.status(500).json({ error: 'Internal server error: ' + error.message });
