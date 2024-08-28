@@ -19,5 +19,10 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ]
+  ],
+  "functions": {
+    "api/transcribe.ts": {
+      "maxDuration": 60
+    }
+  }
 }

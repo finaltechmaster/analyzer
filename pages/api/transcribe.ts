@@ -1,12 +1,17 @@
 import { AssemblyAI } from 'assemblyai';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest } from 'next/server';
 
 // Initialisieren des AssemblyAI-Clients
 const client = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY as string
 });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export const config = {
+  runtime: 'edge',
+}
+
+export default async function handler(req: NextRequest) {
   // Überprüfen der HTTP-Methode
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -38,10 +43,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('Transcription completed:', result.id);
 
     // Senden der Antwort
-    return res.status(200).json(result);
+    return new Response(JSON.stringify({ result }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('Error in transcription process:', error);
-    return res.status(500).json({ error: 'Internal server error: ' + (error as Error).message });
+    console.error('Detailed error:', JSON.stringify(error, null, 2));
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : JSON.stringify(error)
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
