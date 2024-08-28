@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import * as AssemblyAI from 'assemblyai';
+import AssemblyAI from 'assemblyai';
 
 // Vercel-spezifische Umgebungsvariable
 const API_KEY = process.env.ASSEMBLYAI_API_KEY;
@@ -10,7 +10,9 @@ if (!API_KEY) {
 }
 
 // Initialisieren Sie den Client mit Ihrem API-Schlüssel
-const client = new AssemblyAI.Client(API_KEY);
+const client = new AssemblyAI({
+  apiKey: API_KEY
+});
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -27,10 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       console.log('Transcription response:', transcript);
-
-      if ('error' in transcript) {
-        return res.status(500).json({ error: transcript.error });
-      }
 
       return res.status(200).json(transcript);
     } catch (error: any) {

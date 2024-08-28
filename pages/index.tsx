@@ -168,7 +168,7 @@ export default function Home() {
   const analyzeSelectedVideos = async () => {
     console.log('Analyzing selected videos:', selectedVideos);
     if (selectedVideos.length === 0) {
-      alert('Bitte wählen Sie mindestens ein Video für die Analyse aus.');
+      console.error('Bitte wählen Sie mindestens ein Video für die Analyse aus.');
       return;
     }
 
