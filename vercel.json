@@ -2,10 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "pages/api/**/*.ts",
-      "use": "@vercel/node"
-    },
-    {
       "src": "next.config.js",
       "use": "@vercel/next"
     }
@@ -22,6 +18,9 @@
   ],
   "functions": {
     "api/transcribe.ts": {
+      "maxDuration": 70
+    },
+    "api/process-transcription.ts": {
       "maxDuration": 70
     }
   }

@@ -1,39 +1,21 @@
-import { NextRequest } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
-const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY as string
-});
+const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY as string });
 
-export const config = {
-  runtime: 'edge',
-};
+// Entfernen Sie diese Zeile, falls sie noch vorhanden ist
+// export const config = { runtime: 'edge' };
 
-export default async function handler(req: NextRequest) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('Process Transcription API called');
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  let requestId, video_url, language;
-  try {
-    ({ requestId, video_url, language } = await req.json());
-  } catch (error) {
-    console.error('Error parsing request:', error);
-    return new Response(JSON.stringify({ error: 'Invalid request body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const { requestId, video_url, language } = req.body;
 
   if (!requestId || !video_url || !language) {
-    return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
   console.log(`Processing transcription request ${requestId}`);
@@ -44,20 +26,31 @@ export default async function handler(req: NextRequest) {
       language_code: language,
     });
 
-    console.log(`Transcription ${requestId} completed, ID: ${transcript.id}`);
+    console.log(`Transcription ${requestId} started, ID: ${transcript.id}`);
 
-    return new Response(JSON.stringify({ status: 'completed', transcriptId: transcript.id }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Warten auf die Fertigstellung der Transkription
+    let completedTranscript;
+    do {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Warte 5 Sekunden
+      completedTranscript = await client.transcripts.get(transcript.id);
+      console.log(`Transcription status: ${completedTranscript.status}`);
+    } while (completedTranscript.status === 'queued' || completedTranscript.status === 'processing');
+
+    if (completedTranscript.status === 'completed') {
+      console.log('Completed transcript:', completedTranscript);
+      return res.status(200).json({ 
+        status: 'completed', 
+        transcriptId: completedTranscript.id,
+        transcriptText: completedTranscript.text
+      });
+    } else {
+      throw new Error(`Transcription failed with status: ${completedTranscript.status}`);
+    }
   } catch (error) {
     console.error(`Error processing transcription ${requestId}:`, error);
-    return new Response(JSON.stringify({ 
+    return res.status(500).json({ 
       error: 'Failed to process transcription',
       details: error instanceof Error ? error.message : JSON.stringify(error)
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

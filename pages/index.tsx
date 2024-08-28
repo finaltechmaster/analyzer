@@ -226,8 +226,6 @@ export default function Home() {
         console.log('Process transcription response:', processResponse.data);
         
         if (processResponse.data && processResponse.data.status === 'completed') {
-          // Hier müssen Sie die Logik anpassen, um den tatsächlichen Transkriptionstext zu erhalten
-          // Dies hängt davon ab, wie Ihre AssemblyAI-Integration den Text zurückgibt
           return processResponse.data.transcriptText || 'Transkription erfolgreich, Text nicht verfügbar';
         } else {
           throw new Error('Transkription nicht erfolgreich abgeschlossen');

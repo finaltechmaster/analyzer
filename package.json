@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "your clean command here"
   },
   "dependencies": {
     "assemblyai": "^4.7.0",
