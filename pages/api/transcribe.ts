@@ -8,6 +8,7 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+// Korrekte Initialisierung des AssemblyAI-Clients
 const client = new AssemblyAI({
   apiKey: API_KEY
 });
