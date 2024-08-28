@@ -1,12 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { AssemblyAI } from 'assemblyai';
+import * as AssemblyAI from 'assemblyai';
 
 // Log the API key to verify it is being read correctly
 console.log('AssemblyAI API Key:', process.env.ASSEMBLYAI_API_KEY);
 
-const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY || '',
-});
+const client = new AssemblyAI.Client(process.env.ASSEMBLYAI_API_KEY || '');
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
