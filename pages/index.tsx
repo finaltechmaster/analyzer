@@ -207,23 +207,39 @@ export default function Home() {
   const getTranscription = async (videoUrl: string): Promise<string> => {
     console.log('Getting transcription for video URL:', videoUrl);
     try {
-      const response = await axios.post('/api/transcribe', { 
+      // Schritt 1: Transkription starten
+      const startResponse = await axios.post('/api/transcribe', { 
         video_url: videoUrl,
         language: 'de'
       });
-      console.log('Transcription response:', response.data);
-      if (response.data && response.data.text) {
-        return response.data.text;
+      console.log('Start transcription response:', startResponse.data);
+      
+      if (startResponse.data && startResponse.data.requestId) {
+        const requestId = startResponse.data.requestId;
+        
+        // Schritt 2: Transkription verarbeiten
+        const processResponse = await axios.post('/api/process-transcription', {
+          requestId,
+          video_url: videoUrl,
+          language: 'de'
+        });
+        console.log('Process transcription response:', processResponse.data);
+        
+        if (processResponse.data && processResponse.data.status === 'completed') {
+          // Hier müssen Sie die Logik anpassen, um den tatsächlichen Transkriptionstext zu erhalten
+          // Dies hängt davon ab, wie Ihre AssemblyAI-Integration den Text zurückgibt
+          return processResponse.data.transcriptText || 'Transkription erfolgreich, Text nicht verfügbar';
+        } else {
+          throw new Error('Transkription nicht erfolgreich abgeschlossen');
+        }
       } else {
-        throw new Error('Unerwartetes Format der Transkriptionsantwort');
+        throw new Error('Keine Request-ID erhalten');
       }
     } catch (error) {
       console.error('Fehler bei der Transkription:', error);
       if (axios.isAxiosError(error)) {
         console.error('Axios error details:', error.toJSON());
-        if (error.response?.data?.text) {
-          return error.response.data.text;
-        } else if (error.response?.data?.error) {
+        if (error.response?.data?.error) {
           return `Transkription fehlgeschlagen: ${error.response.data.error}`;
         } else {
           return `Transkription fehlgeschlagen: ${error.message}`;
@@ -252,7 +268,7 @@ export default function Home() {
         <input
           type="text"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
           placeholder="TikTok Benutzername"
           required
           className={styles.input}

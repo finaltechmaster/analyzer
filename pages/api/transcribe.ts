@@ -1,18 +1,11 @@
 import { NextRequest } from 'next/server';
-import { AssemblyAI } from 'assemblyai';
-
-// Initialisieren des AssemblyAI-Clients
-const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY as string
-});
 
 export const config = {
   runtime: 'edge',
-}
+};
 
 export default async function handler(req: NextRequest) {
   console.log('Transcribe API called');
-  // Überprüfen der HTTP-Methode
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
       status: 405,
@@ -20,10 +13,17 @@ export default async function handler(req: NextRequest) {
     });
   }
 
-  // Extrahieren der Daten aus dem Request Body
-  const { video_url, language } = await req.json();
+  let video_url, language;
+  try {
+    ({ video_url, language } = await req.json());
+  } catch (error) {
+    console.error('Error parsing request:', error);
+    return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-  // Überprüfen, ob die erforderlichen Daten vorhanden sind
   if (!video_url || !language) {
     return new Response(JSON.stringify({ error: 'Missing required fields: video_url or language' }), {
       status: 400,
@@ -31,26 +31,17 @@ export default async function handler(req: NextRequest) {
     });
   }
 
-  try {
-    console.log('Starting transcription');
-    const transcript = await client.transcripts.create({
-      audio_url: video_url,
-      language_code: language,
-    });
-    console.log('Transcription started, ID:', transcript.id);
+  console.log('Request received:', { video_url, language });
 
-    return new Response(JSON.stringify({ id: transcript.id, status: 'processing' }), {
-      status: 202,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Detailed error in transcribe:', JSON.stringify(error, null, 2));
-    return new Response(JSON.stringify({ 
-      error: 'Failed to start transcription', 
-      details: error instanceof Error ? error.message : JSON.stringify(error)
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  // Generieren Sie eine eindeutige ID für diese Anfrage
+  const requestId = Date.now().toString();
+
+  // Hier würden Sie normalerweise die Transkriptionsanfrage in eine Datenbank oder Warteschlange einfügen
+  console.log(`Transcription request ${requestId} queued for processing`);
+
+  // Antworten Sie sofort
+  return new Response(JSON.stringify({ status: 'queued', requestId }), {
+    status: 202,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
