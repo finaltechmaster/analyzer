@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
 // Initialisieren des AssemblyAI-Clients
-const client = AssemblyAI({
+const client = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY
 });
 
