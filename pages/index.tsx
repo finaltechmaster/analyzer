@@ -49,7 +49,7 @@ export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
   const RAPIDAPI_KEY = '203e9f12b9msh183c5b2cbbbe6e1p11fbf6jsnd5bc216f80bf';
-  const RAPIDAPI_HOST = 'tiktok-video-no-watermark2.p.rapidapi.com';
+  const RAPIDAPI_HOST = 'tiktok-scraper7.p.rapidapi.com';
 
   const loadUserProfile = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,7 +66,7 @@ export default function Home() {
       console.log('User Data Response:', userData);
       setUserData(userData);
 
-      const videosData = await getVideos(username, 20);
+      const videosData = await getVideos(userData.id, 20); // Verwenden Sie die Benutzer-ID
       console.log('Videos Data Response:', videosData);
       setVideos(videosData);
     } catch (error) {
@@ -80,7 +80,7 @@ export default function Home() {
   const getUserData = async (username: string): Promise<UserData> => {
     const options = {
       method: 'GET',
-      url: 'https://tiktok-video-no-watermark2.p.rapidapi.com/user/info',
+      url: 'https://tiktok-scraper7.p.rapidapi.com/user/info',
       params: { unique_id: username, hd: '1' },
       headers: {
         'X-RapidAPI-Key': RAPIDAPI_KEY,
@@ -95,7 +95,7 @@ export default function Home() {
       if (response.data && response.data.data) {
         const userData = response.data.data;
         return {
-          id: userData.user.id,
+          id: userData.user.id, // Benutzer-ID extrahieren
           uniqueId: userData.user.uniqueId,
           nickname: userData.user.nickname,
           signature: userData.user.signature,
@@ -117,11 +117,11 @@ export default function Home() {
     }
   };
 
-  const getVideos = async (username: string, count: number): Promise<Video[]> => {
+  const getVideos = async (userId: string, count: number): Promise<Video[]> => {
     const options = {
       method: 'GET',
-      url: 'https://tiktok-video-no-watermark2.p.rapidapi.com/user/posts',
-      params: { unique_id: username, count: count },
+      url: 'https://tiktok-scraper7.p.rapidapi.com/user/posts',
+      params: { user_id: userId, count: count.toString(), cursor: '0' },
       headers: {
         'X-RapidAPI-Key': RAPIDAPI_KEY,
         'X-RapidAPI-Host': RAPIDAPI_HOST
@@ -133,16 +133,19 @@ export default function Home() {
       console.log('API Videos Response:', response.data);
       
       if (response.data && response.data.data && Array.isArray(response.data.data.videos)) {
-        return response.data.data.videos.map((video: any) => ({
-          id: video.video_id || '',
-          desc: video.title || video.desc || 'Kein Titel',
-          thumbnail: video.origin_cover || video.cover || '',
-          likes: video.statistics?.digg_count || 0,
-          comments: video.statistics?.comment_count || 0,
-          musicTitle: video.music?.title || '',
-          caption: video.desc || '',
-          videoUrl: video.play || ''
-        }));
+        return response.data.data.videos.map((video: any) => {
+          console.log('Video Data:', video); // Debugging-Ausgabe
+          return {
+            id: video.video_id || '',
+            desc: video.title || video.desc || 'Kein Titel',
+            thumbnail: video.origin_cover || video.cover || '',
+            likes: video.digg_count || 0,
+            comments: video.comment_count || 0,
+            musicTitle: video.music?.title || '',
+            caption: video.desc || '',
+            videoUrl: video.play || ''
+          };
+        });
       } else {
         throw new Error('Video-Daten konnten nicht geladen werden');
       }
@@ -204,7 +207,7 @@ export default function Home() {
   const getTranscription = async (videoUrl: string): Promise<string> => {
     console.log('Getting transcription for video URL:', videoUrl);
     try {
-      const response = await axios.post('https://finalmaster.pythonanywhere.com/transcribe', { 
+      const response = await axios.post('/api/transcribe', { 
         video_url: videoUrl,
         language: 'de'
       });
@@ -216,10 +219,15 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Fehler bei der Transkription:', error);
-      if (axios.isAxiosError(error) && error.response?.data?.text) {
-        return error.response.data.text;
-      } else if (axios.isAxiosError(error) && error.response?.data?.error) {
-        return `Transkription fehlgeschlagen: ${error.response.data.error}`;
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', error.toJSON());
+        if (error.response?.data?.text) {
+          return error.response.data.text;
+        } else if (error.response?.data?.error) {
+          return `Transkription fehlgeschlagen: ${error.response.data.error}`;
+        } else {
+          return `Transkription fehlgeschlagen: ${error.message}`;
+        }
       } else {
         return `Transkription fehlgeschlagen: ${(error as Error).message}`;
       }

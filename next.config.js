@@ -2,7 +2,21 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['p16-sign-useast2a.tiktokcdn.com'], // Fügen Sie hier die Domain(s) hinzu, von denen Sie Bilder laden
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'p16-sign-useast2a.tiktokcdn.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Add more patterns as needed
+    ],
   },
 }
 
