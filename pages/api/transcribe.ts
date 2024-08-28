@@ -1,37 +1,21 @@
-import { NextRequest } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
 const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY as string });
 
-export const config = {
-  runtime: 'edge',
-};
+// Entfernen Sie diese Zeile
+// export const config = { runtime: 'edge' };
 
-export default async function handler(req: NextRequest) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('Transcribe API called');
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  let video_url, language;
-  try {
-    ({ video_url, language } = await req.json());
-  } catch (error) {
-    console.error('Error parsing request:', error);
-    return new Response(JSON.stringify({ error: 'Invalid request body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const { video_url, language } = req.body;
 
   if (!video_url || !language) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: video_url or language' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(400).json({ error: 'Missing required fields: video_url or language' });
   }
 
   console.log('Request received:', { video_url, language });
@@ -42,15 +26,9 @@ export default async function handler(req: NextRequest) {
       language_code: language,
     });
 
-    return new Response(JSON.stringify({ status: 'processing', transcriptId: transcript.id }), {
-      status: 202,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(202).json({ status: 'processing', transcriptId: transcript.id });
   } catch (error) {
     console.error('Error starting transcription:', error);
-    return new Response(JSON.stringify({ error: 'Failed to start transcription' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: 'Failed to start transcription' });
   }
 }

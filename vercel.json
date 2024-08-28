@@ -20,7 +20,7 @@
     "api/transcribe.ts": {
       "maxDuration": 300
     },
-    "api/process-transcription.ts": {
+    "api/transcription-status.ts": {
       "maxDuration": 300
     }
   }

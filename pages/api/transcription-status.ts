@@ -1,62 +1,42 @@
-import { NextRequest } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
 const client = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY as string
 });
 
-export const config = {
-  runtime: 'edge',
-};
+// Entfernen Sie diese Zeile
+// export const config = { runtime: 'edge' };
 
-export default async function handler(req: NextRequest) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('Transcription status API called');
   if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
+  const { id } = req.query;
 
   if (!id) {
-    return new Response(JSON.stringify({ error: 'Missing required parameter: id' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(400).json({ error: 'Missing required parameter: id' });
   }
 
   try {
     console.log('Checking status for ID:', id);
-    const transcript = await client.transcripts.get(id);
+    const transcript = await client.transcripts.get(id as string);
     console.log('Status:', transcript.status);
     
     if (transcript.status === 'completed') {
-      return new Response(JSON.stringify({ status: 'completed', result: transcript }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(200).json({ status: 'completed', result: transcript });
     } else if (transcript.status === 'error') {
-      return new Response(JSON.stringify({ status: 'error', error: transcript.error }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(500).json({ status: 'error', error: transcript.error });
     } else {
-      return new Response(JSON.stringify({ status: 'processing' }), {
-        status: 202,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(202).json({ status: 'processing' });
     }
   } catch (error) {
     console.error('Detailed error in status check:', JSON.stringify(error, null, 2));
-    return new Response(JSON.stringify({ 
+    return res.status(500).json({ 
       error: 'Failed to check transcription status', 
       details: error instanceof Error ? error.message : JSON.stringify(error)
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
     });
   }
 }
