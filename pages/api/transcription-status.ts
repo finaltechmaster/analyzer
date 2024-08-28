@@ -10,6 +10,7 @@ export const config = {
 };
 
 export default async function handler(req: NextRequest) {
+  console.log('Transcription status API called');
   if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
       status: 405,
@@ -28,7 +29,9 @@ export default async function handler(req: NextRequest) {
   }
 
   try {
+    console.log('Checking status for ID:', id);
     const transcript = await client.transcripts.get(id);
+    console.log('Status:', transcript.status);
     
     if (transcript.status === 'completed') {
       return new Response(JSON.stringify({ status: 'completed', result: transcript }), {
@@ -47,7 +50,7 @@ export default async function handler(req: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error checking transcription status:', error);
+    console.error('Detailed error in status check:', JSON.stringify(error, null, 2));
     return new Response(JSON.stringify({ 
       error: 'Failed to check transcription status', 
       details: error instanceof Error ? error.message : JSON.stringify(error)

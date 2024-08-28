@@ -11,6 +11,7 @@ export const config = {
 }
 
 export default async function handler(req: NextRequest) {
+  console.log('Transcribe API called');
   // Überprüfen der HTTP-Methode
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
@@ -31,18 +32,19 @@ export default async function handler(req: NextRequest) {
   }
 
   try {
-    // Erstellen des Transkripts
+    console.log('Starting transcription');
     const transcript = await client.transcripts.create({
       audio_url: video_url,
       language_code: language,
     });
+    console.log('Transcription started, ID:', transcript.id);
 
     return new Response(JSON.stringify({ id: transcript.id, status: 'processing' }), {
       status: 202,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error starting transcription:', error);
+    console.error('Detailed error in transcribe:', JSON.stringify(error, null, 2));
     return new Response(JSON.stringify({ 
       error: 'Failed to start transcription', 
       details: error instanceof Error ? error.message : JSON.stringify(error)
