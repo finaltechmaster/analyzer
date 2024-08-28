@@ -14,19 +14,22 @@ export const config = {
 export default async function handler(req: NextRequest) {
   // Überprüfen der HTTP-Methode
   if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    return new Response(JSON.stringify({ error: `Method ${req.method} Not Allowed` }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   // Extrahieren der Daten aus dem Request Body
-  const { video_url, language } = req.body;
+  const { video_url, language } = await req.json();
 
   // Überprüfen, ob die erforderlichen Daten vorhanden sind
   if (!video_url || !language) {
-    return res.status(400).json({ error: 'Missing required fields: video_url or language' });
+    return new Response(JSON.stringify({ error: 'Missing required fields: video_url or language' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-
-  console.log('Received request:', { video_url, language });
 
   try {
     // Erstellen des Transkripts
@@ -35,44 +38,18 @@ export default async function handler(req: NextRequest) {
       language_code: language,
     });
 
-    console.log('Transcription initiated:', transcript.id);
-
-    // Warten auf den Abschluss der Transkription
-    const result = await pollForCompletion(transcript.id);
-
-    console.log('Transcription completed:', result.id);
-
-    // Senden der Antwort
-    return new Response(JSON.stringify({ result }), {
-      status: 200,
+    return new Response(JSON.stringify({ id: transcript.id, status: 'processing' }), {
+      status: 202,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Detailed error:', JSON.stringify(error, null, 2));
+    console.error('Error starting transcription:', error);
     return new Response(JSON.stringify({ 
-      error: 'Internal server error', 
+      error: 'Failed to start transcription', 
       details: error instanceof Error ? error.message : JSON.stringify(error)
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
-}
-
-// Hilfsfunktion zum Pollen des Transkriptionsstatus
-async function pollForCompletion(transcriptId: string, maxAttempts = 60): Promise<any> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const transcript = await client.transcripts.get(transcriptId);
-    
-    if (transcript.status === 'completed') {
-      return transcript;
-    } else if (transcript.status === 'error') {
-      throw new Error('Transcription failed: ' + transcript.error);
-    }
-
-    // Warten für 5 Sekunden vor dem nächsten Versuch
-    await new Promise(resolve => setTimeout(resolve, 5000));
-  }
-
-  throw new Error('Transcription timed out');
 }
