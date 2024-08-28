@@ -1,6 +1,5 @@
-import { AssemblyAI } from 'assemblyai';
-import type { NextApiRequest, NextApiResponse } from 'next';
 import { NextRequest } from 'next/server';
+import { AssemblyAI } from 'assemblyai';
 
 // Initialisieren des AssemblyAI-Clients
 const client = new AssemblyAI({
