@@ -1,9 +1,9 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Initialisieren des AssemblyAI-Clients
 const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY
+  apiKey: process.env.ASSEMBLYAI_API_KEY as string
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
