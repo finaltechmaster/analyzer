@@ -1,4 +1,7 @@
 import { NextRequest } from 'next/server';
+import { AssemblyAI } from 'assemblyai';
+
+const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY as string });
 
 export const config = {
   runtime: 'edge',
@@ -33,15 +36,21 @@ export default async function handler(req: NextRequest) {
 
   console.log('Request received:', { video_url, language });
 
-  // Generieren Sie eine eindeutige ID für diese Anfrage
-  const requestId = Date.now().toString();
+  try {
+    const transcript = await client.transcripts.create({
+      audio_url: video_url,
+      language_code: language,
+    });
 
-  // Hier würden Sie normalerweise die Transkriptionsanfrage in eine Datenbank oder Warteschlange einfügen
-  console.log(`Transcription request ${requestId} queued for processing`);
-
-  // Antworten Sie sofort
-  return new Response(JSON.stringify({ status: 'queued', requestId }), {
-    status: 202,
-    headers: { 'Content-Type': 'application/json' },
-  });
+    return new Response(JSON.stringify({ status: 'processing', transcriptId: transcript.id }), {
+      status: 202,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error starting transcription:', error);
+    return new Response(JSON.stringify({ error: 'Failed to start transcription' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }

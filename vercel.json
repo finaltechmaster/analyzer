@@ -18,10 +18,10 @@
   ],
   "functions": {
     "api/transcribe.ts": {
-      "maxDuration": 70
+      "maxDuration": 300
     },
     "api/process-transcription.ts": {
-      "maxDuration": 70
+      "maxDuration": 300
     }
   }
 }
