@@ -6,6 +6,7 @@ if (!process.env.ASSEMBLYAI_API_KEY) {
 }
 
 const client = AssemblyAI.default(process.env.ASSEMBLYAI_API_KEY));
+
 // export const config = { runtime: 'edge' };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
