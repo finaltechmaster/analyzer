@@ -72,3 +72,6 @@ jspm_packages/
 *.ntvs*
 *.njsproj
 *.sln
+
+# Fügen Sie diese Zeile hinzu oder stellen Sie sicher, dass sie vorhanden ist
+.env.local

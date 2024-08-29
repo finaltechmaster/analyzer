@@ -1,7 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
-const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY as string });
+if (!process.env.ASSEMBLYAI_API_KEY) {
+  throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
+}
+
+const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
+
 // export const config = { runtime: 'edge' };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
