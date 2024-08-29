@@ -12,14 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Invalid or missing text' });
   }
 
-  if (!language || typeof language !== 'string') {
-    return res.status(400).json({ error: 'Invalid or missing language' });
-  }
-
   try {
-    console.log('Analyzing text:', text.substring(0, 100) + '...');
-    console.log('Language:', language);
-
     const analysisResult = await performBigFiveAnalysis(text, language);
     console.log('Analysis result:', analysisResult);
 
