@@ -1,4 +1,6 @@
-import React, { useState, FormEvent, useEffect } from 'react';
+import type { NextPage } from 'next';
+import React, { useState, FormEvent } from 'react';
+import Head from 'next/head';
 import Image from 'next/image';
 import axios from 'axios';
 import { AlertCircle, Brain, Heart, Frown, Smile, DollarSign, Activity, Briefcase, Lightbulb } from 'lucide-react';
@@ -43,7 +45,7 @@ interface PersonalityInsights {
   life_suggestion: string;
 }
 
-export default function Home() {
+const Home: NextPage = () => {
   const [username, setUsername] = useState('');
   const [userData, setUserData] = useState<UserData | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -332,8 +334,47 @@ export default function Home() {
     // ... weitere Persönlichkeitsmerkmale
   };
 
+  const handleAnalyze = async () => {
+    if (selectedVideos.length === 0) {
+      setError('Bitte wählen Sie mindestens ein Video für die Analyse aus.');
+      return;
+    }
+
+    setAnalyzing(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: userData?.id, selectedVideos }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to analyze user');
+      }
+      
+      const result: AnalysisResult = await response.json();
+      setAnalysisResult(result);
+      await generateInsights(transcriptionText, result, 'de'); // Assuming German language
+    } catch (err) {
+      setError('Failed to analyze user. Please try again.');
+      console.error(err);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div className={styles.container}>
+      <Head>
+        <title>TikTok Persönlichkeits-Analyzer</title>
+        <meta name="description" content="Analyze TikTok user personalities" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
       <h1 className={styles.title}>TikTok Persönlichkeits-Analyzer</h1>
       <form onSubmit={loadUserProfile} className={styles.form}>
         <input
@@ -402,7 +443,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <button onClick={analyzeSelectedVideos} className={styles.analyzeButton} disabled={analyzing}>
+          <button onClick={handleAnalyze} className={styles.analyzeButton} disabled={analyzing}>
             {analyzing ? 'Analyse läuft...' : 'Ausgewählte Videos analysieren'}
           </button>
           {analyzing && <div className={styles.loader}></div>}
@@ -423,7 +464,7 @@ export default function Home() {
       )}
 
       {analysisResult && (
-        <AnalysisResults results={analysisResult as AnalysisResult} />
+        <AnalysisResults results={analysisResult} />
       )}
 
       {personalityInsights && (
@@ -491,4 +532,6 @@ export default function Home() {
       )}
     </div>
   );
-}
+};
+
+export default Home;

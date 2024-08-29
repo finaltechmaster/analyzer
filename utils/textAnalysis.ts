@@ -1,11 +1,30 @@
 import OpenAI from 'openai';
-import { AnalysisResult } from '../types/analysisTypes';
+import { AnalysisResult as AIAnalysisResult } from '../types/analysisTypes';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function performBigFiveAnalysis(text: string, language: string): Promise<AnalysisResult> {
+// Define a type for the traits
+type Trait = 'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism';
+
+// Define a type for the trait details
+type TraitDetails = {
+  score: number;
+  explanation: string;
+  percentile: number;
+};
+
+// Update the ImportedAnalysisResult interface
+interface ImportedAnalysisResult {
+  openness: TraitDetails;
+  conscientiousness: TraitDetails;
+  extraversion: TraitDetails;
+  agreeableness: TraitDetails;
+  neuroticism: TraitDetails;
+}
+
+export async function performBigFiveAnalysis(text: string, language: string): Promise<ImportedAnalysisResult> {
   try {
     console.log('Performing Big Five analysis on text:', text.substring(0, 100) + '...');
     console.log('Detected language:', language);
@@ -55,7 +74,7 @@ export async function performBigFiveAnalysis(text: string, language: string): Pr
       throw new Error('No response from OpenAI');
     }
 
-    let parsedResponse: AnalysisResult;
+    let parsedResponse: ImportedAnalysisResult;
     try {
       // Versuche, nur den JSON-Teil der Antwort zu extrahieren
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -70,12 +89,21 @@ export async function performBigFiveAnalysis(text: string, language: string): Pr
     }
 
     // Validate and sanitize the parsed response
-    const traits = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
-    const sanitizedResponse: AnalysisResult = {};
+    const traits: Trait[] = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+    const sanitizedResponse: ImportedAnalysisResult = {
+      openness: { score: 0, explanation: '', percentile: 0 },
+      conscientiousness: { score: 0, explanation: '', percentile: 0 },
+      extraversion: { score: 0, explanation: '', percentile: 0 },
+      agreeableness: { score: 0, explanation: '', percentile: 0 },
+      neuroticism: { score: 0, explanation: '', percentile: 0 }
+    };
     for (const trait of traits) {
-      if (!parsedResponse[trait] || typeof parsedResponse[trait].score !== 'number' || typeof parsedResponse[trait].explanation !== 'string') {
+      if (!parsedResponse[trait] || 
+          typeof parsedResponse[trait].score !== 'number' || 
+          typeof parsedResponse[trait].explanation !== 'string' ||
+          typeof parsedResponse[trait].percentile !== 'number') {
         console.error(`Invalid data for trait: ${trait}`, parsedResponse[trait]);
-        sanitizedResponse[trait] = { score: 0, explanation: 'Data not available' };
+        sanitizedResponse[trait] = { score: 0, explanation: 'Data not available', percentile: 0 };
       } else {
         sanitizedResponse[trait] = parsedResponse[trait];
       }

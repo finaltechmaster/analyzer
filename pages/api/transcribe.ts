@@ -1,51 +1,30 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import * as AssemblyAI from 'assemblyai';
+import { AssemblyAI } from 'assemblyai';
 
 if (!process.env.ASSEMBLYAI_API_KEY) {
   throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
 }
 
-const client = new AssemblyAI.Client(process.env.ASSEMBLYAI_API_KEY);
-
-// export const config = { runtime: 'edge' };
+const client = new AssemblyAI({
+  apiKey: process.env.ASSEMBLYAI_API_KEY
+});
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log('Transcribe API called');
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { video_url, language } = req.body;
+  const { transcriptId } = req.query;
 
-  if (!video_url || !language) {
-    return res.status(400).json({ error: 'Missing required fields: video_url or language' });
+  if (!transcriptId || typeof transcriptId !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid transcriptId in query parameters' });
   }
-
-  console.log('Request received:', { video_url, language });
 
   try {
-    const transcript = await client.transcripts.create({
-      audio_url: video_url,
-      language_detection: true, // Aktiviert die automatische Spracherkennung
-    });
-
-    console.log('Transcript created:', transcript);
-
-    if (!transcript.id) {
-      throw new Error('No transcript ID received');
-    }
-
-    return res.status(202).json({ 
-      status: 'processing', 
-      transcriptId: transcript.id, 
-      detectedLanguage: transcript.language_code // Fügt die erkannte Sprache hinzu
-    });
-  } catch (error: unknown) {
-    console.error('Error starting transcription:', error);
-    if (error instanceof Error) {
-      return res.status(500).json({ error: 'Failed to start transcription', details: error.message });
-    } else {
-      return res.status(500).json({ error: 'Failed to start transcription', details: 'An unknown error occurred' });
-    }
+    const transcript = await client.transcripts.get(transcriptId);
+    return res.status(200).json(transcript);
+  } catch (error) {
+    console.error('Error fetching transcript status:', error);
+    return res.status(500).json({ error: 'Failed to fetch transcript status' });
   }
 }
