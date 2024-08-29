@@ -4,7 +4,7 @@ import axios from 'axios';
 import { AlertCircle, Brain, Heart, Frown, Smile, DollarSign, Activity, Briefcase, Lightbulb } from 'lucide-react';
 import styles from '../styles/Home.module.css';
 import AnalysisResults from '../components/AnalysisResults';
-import { AnalysisResult } from '../types/analysisTypes';
+import type { AnalysisResult } from '../types/analysisTypes';
 
 interface UserData {
   id: string;

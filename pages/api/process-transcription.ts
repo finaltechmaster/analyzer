@@ -1,9 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
-const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY as string });
-
-// Entfernen Sie diese Zeile, falls sie noch vorhanden ist
+const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
 // export const config = { runtime: 'edge' };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
