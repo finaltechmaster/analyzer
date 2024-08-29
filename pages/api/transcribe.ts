@@ -23,12 +23,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const transcript = await client.transcripts.create({
       audio_url: video_url,
-      language_code: language,
+      language_detection: true, // Aktiviert die automatische Spracherkennung
     });
 
-    return res.status(202).json({ status: 'processing', transcriptId: transcript.id });
-  } catch (error) {
+    console.log('Transcript created:', transcript);
+
+    if (!transcript.id) {
+      throw new Error('No transcript ID received');
+    }
+
+    return res.status(202).json({ 
+      status: 'processing', 
+      transcriptId: transcript.id, 
+      detectedLanguage: transcript.language_code // Fügt die erkannte Sprache hinzu
+    });
+  } catch (error: unknown) {
     console.error('Error starting transcription:', error);
-    return res.status(500).json({ error: 'Failed to start transcription' });
+    if (error instanceof Error) {
+      return res.status(500).json({ error: 'Failed to start transcription', details: error.message });
+    } else {
+      return res.status(500).json({ error: 'Failed to start transcription', details: 'An unknown error occurred' });
+    }
   }
 }

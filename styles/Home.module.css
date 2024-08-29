@@ -261,3 +261,159 @@
     grid-template-columns: 1fr;
   }
 }
+
+.insightsContainer {
+  margin-top: 2rem;
+}
+
+.insightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.insightsGrid > div {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+}
+
+.insightsGrid > div:hover {
+  transform: translateY(-5px);
+}
+
+.insightsGrid h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.insightsGrid p {
+  font-size: 1rem;
+  color: #333;
+}
+
+.traitGrid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.traitItem {
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.traitHeader {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+
+.traitTitle {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.traitDescription {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.traitScore {
+  margin-bottom: 0.5rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 20px;
+  background-color: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: #4CAF50;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transition: width 0.5s ease-in-out;
+}
+
+.progressText {
+  color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding-right: 5px;
+}
+
+.traitExplanation {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.insightCard {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+  padding: 1rem;
+}
+
+.insightCard:hover {
+  transform: translateY(-5px);
+}
+
+.insightHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.insightHeader h3 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.insightContent {
+  font-size: 1rem;
+  color: #333;
+}
+
+.traitHeader {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+
+.traitTitle {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.traitDescription {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.traitScore {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.traitScore progress {
+  flex-grow: 1;
+}
+
+.traitExplanation {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}

@@ -1,7 +1,9 @@
-import { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import Image from 'next/image';
 import axios from 'axios';
+import { AlertCircle, Brain, Heart, Frown, Smile, DollarSign, Activity, Briefcase, Lightbulb } from 'lucide-react';
 import styles from '../styles/Home.module.css';
+import AnalysisResults from '../components/AnalysisResults';
 
 interface UserData {
   id: string;
@@ -37,6 +39,17 @@ interface AnalysisResult {
   neuroticism: number;
 }
 
+interface PersonalityInsights {
+  roast: string;
+  strengths: string;
+  weaknesses: string;
+  love_life: string;
+  money: string;
+  health: string;
+  career: string;
+  life_suggestion: string;
+}
+
 export default function Home() {
   const [username, setUsername] = useState('');
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -45,8 +58,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState('');
-  const [transcriptions, setTranscriptions] = useState<string[]>([]);
+  const [transcriptions, setTranscriptions] = useState<{ caption: string; transcription: string }[]>([]);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [transcriptionText, setTranscriptionText] = useState('');
+  const [personalityInsights, setPersonalityInsights] = useState<PersonalityInsights | null>(null);
 
   const RAPIDAPI_KEY = '203e9f12b9msh183c5b2cbbbe6e1p11fbf6jsnd5bc216f80bf';
   const RAPIDAPI_HOST = 'tiktok-scraper7.p.rapidapi.com';
@@ -60,6 +75,8 @@ export default function Home() {
     setSelectedVideos([]);
     setAnalysisResult(null);
     setTranscriptions([]);
+    setTranscriptionText('');
+    setPersonalityInsights(null);
 
     try {
       const userData = await getUserData(username);
@@ -165,10 +182,19 @@ export default function Home() {
     });
   };
 
+  const analyzeText = async (text: string, language: string) => {
+    try {
+      const response = await axios.post('/api/analyze-text', { text, language });
+      return response.data;
+    } catch (error) {
+      console.error('Error in analyzeText:', error);
+      throw error;
+    }
+  };
+
   const analyzeSelectedVideos = async () => {
-    console.log('Analyzing selected videos:', selectedVideos);
     if (selectedVideos.length === 0) {
-      console.error('Bitte wählen Sie mindestens ein Video für die Analyse aus.');
+      setError('Bitte wählen Sie mindestens ein Video für die Analyse aus.');
       return;
     }
 
@@ -179,23 +205,40 @@ export default function Home() {
       const transcribedVideos = await Promise.all(
         selectedVideos.map(async (index) => {
           const video = videos[index];
-          const transcription = await getTranscription(video.videoUrl);
+          const transcriptionResult = await getTranscription(video.videoUrl);
           return {
-            ...video,
-            transcription
+            caption: video.desc, // Verwenden Sie die Beschreibung als Caption
+            transcription: transcriptionResult.transcription,
+            language: transcriptionResult.language
           };
         })
       );
 
-      setTranscriptions(transcribedVideos.map(v => v.transcription));
+      const newTranscriptions = transcribedVideos.map(v => ({
+        caption: v.caption,
+        transcription: v.transcription
+      }));
+      setTranscriptions(newTranscriptions);
 
       const combinedText = transcribedVideos.map(v => 
-        `${v.desc} ${v.caption} ${v.transcription}`
+        `${v.caption} ${v.transcription}`
       ).join(' ');
 
-      const analysis = performBigFiveAnalysis(combinedText + ' ' + (userData?.signature || ''));
+      // Fügen Sie die Benutzerbio hinzu, wenn vorhanden
+      const fullText = userData?.signature 
+        ? `${userData.signature} ${combinedText}`
+        : combinedText;
+
+      console.log('Full text for analysis:', fullText);
+
+      setTranscriptionText(fullText);
+
+      const analysis = await analyzeText(fullText, transcribedVideos[0].language);
       console.log('Analysis result:', analysis);
       setAnalysisResult(analysis);
+
+      // Hier geben wir die erkannte Sprache weiter
+      await generateInsights(fullText, analysis, transcribedVideos[0].language);
     } catch (error) {
       console.error('Fehler bei der Analyse:', error);
       setError(`Fehler bei der Analyse: ${(error as Error).message}`);
@@ -204,7 +247,29 @@ export default function Home() {
     setAnalyzing(false);
   };
 
-  const getTranscription = async (videoUrl: string): Promise<string> => {
+  const generateInsights = async (text: string, personalityTraits: AnalysisResult, language: string) => {
+    const insightCategories = ['roast', 'strengths', 'weaknesses', 'love_life', 'money', 'health', 'career', 'life_suggestion'];
+    const insights: PersonalityInsights = {} as PersonalityInsights;
+
+    for (const category of insightCategories) {
+      try {
+        const response = await axios.post('/api/generate-insights', {
+          transcription: text,
+          category,
+          personalityTraits,
+          language,
+        });
+        insights[category as keyof PersonalityInsights] = response.data.insight;
+      } catch (error) {
+        console.error(`Error generating ${category} insight:`, error);
+        insights[category as keyof PersonalityInsights] = 'Failed to generate insight';
+      }
+    }
+
+    setPersonalityInsights(insights);
+  };
+
+  const getTranscription = async (videoUrl: string): Promise<{ transcription: string, language: string }> => {
     console.log('Getting transcription for video URL:', videoUrl);
     try {
       // Schritt 1: Transkription starten
@@ -214,19 +279,20 @@ export default function Home() {
       });
       console.log('Start transcription response:', startResponse.data);
       
-      if (startResponse.data && startResponse.data.requestId) {
-        const requestId = startResponse.data.requestId;
+      if (startResponse.data && startResponse.data.transcriptId) {
+        const transcriptId = startResponse.data.transcriptId;
         
         // Schritt 2: Transkription verarbeiten
         const processResponse = await axios.post('/api/process-transcription', {
-          requestId,
-          video_url: videoUrl,
-          language: 'de'
+          transcriptId,
         });
         console.log('Process transcription response:', processResponse.data);
         
         if (processResponse.data && processResponse.data.status === 'completed') {
-          return processResponse.data.transcriptText || 'Transkription erfolgreich, Text nicht verfügbar';
+          return {
+            transcription: processResponse.data.transcriptText || 'Transkription erfolgreich, Text nicht verfügbar',
+            language: startResponse.data.detectedLanguage
+          };
         } else {
           throw new Error('Transkription nicht erfolgreich abgeschlossen');
         }
@@ -238,25 +304,39 @@ export default function Home() {
       if (axios.isAxiosError(error)) {
         console.error('Axios error details:', error.toJSON());
         if (error.response?.data?.error) {
-          return `Transkription fehlgeschlagen: ${error.response.data.error}`;
+          return {
+            transcription: `Transkription fehlgeschlagen: ${error.response.data.error}`,
+            language: 'de'
+          };
         } else {
-          return `Transkription fehlgeschlagen: ${error.message}`;
+          return {
+            transcription: `Transkription fehlgeschlagen: ${error.message}`,
+            language: 'de'
+          };
         }
       } else {
-        return `Transkription fehlgeschlagen: ${(error as Error).message}`;
+        return {
+          transcription: `Transkription fehlgeschlagen: ${(error as Error).message}`,
+          language: 'de'
+        };
       }
     }
   };
 
-  const performBigFiveAnalysis = (text: string): AnalysisResult => {
-    // Vereinfachte Analyse für Demonstrationszwecke
-    return {
-      openness: Math.random(),
-      conscientiousness: Math.random(),
-      extraversion: Math.random(),
-      agreeableness: Math.random(),
-      neuroticism: Math.random()
-    };
+  // Hier solltest du deine Daten laden oder von einer API abrufen
+  const analysisResults = {
+    // Beispieldaten
+    openness: {
+      title: 'Offenheit',
+      score: 75,
+      matchedWords: ['neugierig', 'kreativ']
+    },
+    conscientiousness: {
+      title: 'Gewissenhaftigkeit',
+      score: 80,
+      matchedWords: ['organisiert', 'zuverlässig']
+    },
+    // ... weitere Persönlichkeitsmerkmale
   };
 
   return (
@@ -340,38 +420,78 @@ export default function Home() {
         <div className={styles.transcriptResult}>
           <h2>Analysierte Videos:</h2>
           {transcriptions.map((transcription, index) => (
-            <div key={index} className={styles.videoTranscript}>
-              <h3>{videos[selectedVideos[index]].desc}</h3>
-              <p><strong>Caption:</strong> {videos[selectedVideos[index]].caption}</p>
-              <p><strong>Transkription:</strong> {transcription}</p>
+            <div key={index} className={`${styles.videoTranscript} ${index % 2 === 0 ? styles.evenVideo : styles.oddVideo}`}>
+              <h3>Video {index + 1}</h3>
+              <p><strong>Caption:</strong> {transcription.caption}</p>
+              <p><strong>Transkription:</strong> {transcription.transcription}</p>
             </div>
           ))}
         </div>
       )}
 
       {analysisResult && (
-        <div className={styles.analysisResult}>
-          <h2>Big-Five Persönlichkeitsanalyse</h2>
-          <div className={styles.resultGrid}>
-            <div className={styles.resultItem}>
-              <h3>Offenheit für Erfahrungen</h3>
-              <p>{(analysisResult.openness * 100).toFixed(2)}%</p>
+        <AnalysisResults results={analysisResult} />
+      )}
+
+      {personalityInsights && (
+        <div className={styles.insightsContainer}>
+          <h2>Persönlichkeits-Insights</h2>
+          <div className={styles.insightsGrid}>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <AlertCircle className="h-6 w-6 text-red-500" />
+                <h3>Roast</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.roast}</div>
             </div>
-            <div className={styles.resultItem}>
-              <h3>Gewissenhaftigkeit</h3>
-              <p>{(analysisResult.conscientiousness * 100).toFixed(2)}%</p>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <Smile className="h-6 w-6 text-green-500" />
+                <h3>Stärken</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.strengths}</div>
             </div>
-            <div className={styles.resultItem}>
-              <h3>Extraversion</h3>
-              <p>{(analysisResult.extraversion * 100).toFixed(2)}%</p>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <Frown className="h-6 w-6 text-yellow-500" />
+                <h3>Schwächen</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.weaknesses}</div>
             </div>
-            <div className={styles.resultItem}>
-              <h3>Verträglichkeit</h3>
-              <p>{(analysisResult.agreeableness * 100).toFixed(2)}%</p>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <Heart className="h-6 w-6 text-pink-500" />
+                <h3>Liebesleben</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.love_life}</div>
             </div>
-            <div className={styles.resultItem}>
-              <h3>Neurotizismus</h3>
-              <p>{(analysisResult.neuroticism * 100).toFixed(2)}%</p>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <DollarSign className="h-6 w-6 text-green-500" />
+                <h3>Geld</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.money}</div>
+            </div>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <Activity className="h-6 w-6 text-blue-500" />
+                <h3>Gesundheit</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.health}</div>
+            </div>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <Briefcase className="h-6 w-6 text-purple-500" />
+                <h3>Karriere</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.career}</div>
+            </div>
+            <div className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <Lightbulb className="h-6 w-6 text-yellow-500" />
+                <h3>Lebensvorschlag</h3>
+              </div>
+              <div className={styles.insightContent}>{personalityInsights.life_suggestion}</div>
             </div>
           </div>
         </div>

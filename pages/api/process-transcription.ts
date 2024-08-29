@@ -12,45 +12,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { requestId, video_url, language } = req.body;
+  const { transcriptId } = req.body;
 
-  if (!requestId || !video_url || !language) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!transcriptId) {
+    return res.status(400).json({ error: 'Missing required field: transcriptId' });
   }
 
-  console.log(`Processing transcription request ${requestId}`);
+  console.log('Processing transcription request', transcriptId);
 
   try {
-    const transcript = await client.transcripts.create({
-      audio_url: video_url,
-      language_code: language,
-    });
-
-    console.log(`Transcription ${requestId} started, ID: ${transcript.id}`);
-
-    // Warten auf die Fertigstellung der Transkription
-    let completedTranscript;
-    do {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Warte 5 Sekunden
-      completedTranscript = await client.transcripts.get(transcript.id);
-      console.log(`Transcription status: ${completedTranscript.status}`);
-    } while (completedTranscript.status === 'queued' || completedTranscript.status === 'processing');
-
-    if (completedTranscript.status === 'completed') {
-      console.log('Completed transcript:', completedTranscript);
-      return res.status(200).json({ 
-        status: 'completed', 
-        transcriptId: completedTranscript.id,
-        transcriptText: completedTranscript.text
-      });
-    } else {
-      throw new Error(`Transcription failed with status: ${completedTranscript.status}`);
+    let transcript = await client.transcripts.get(transcriptId);
+    
+    while (transcript.status !== 'completed' && transcript.status !== 'error') {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      transcript = await client.transcripts.get(transcriptId);
     }
-  } catch (error) {
-    console.error(`Error processing transcription ${requestId}:`, error);
-    return res.status(500).json({ 
-      error: 'Failed to process transcription',
-      details: error instanceof Error ? error.message : JSON.stringify(error)
+
+    if (transcript.status === 'error') {
+      throw new Error('Transcription failed: ' + transcript.error);
+    }
+
+    console.log('Transcription completed:', transcript);
+
+    return res.status(200).json({ 
+      status: 'completed', 
+      transcriptText: transcript.text 
     });
+  } catch (error) {
+    console.error('Error processing transcription:', error);
+    if (error instanceof Error) {
+      return res.status(500).json({ error: 'Failed to process transcription', details: error.message });
+    } else {
+      return res.status(500).json({ error: 'Failed to process transcription', details: 'Unknown error' });
+    }
   }
 }

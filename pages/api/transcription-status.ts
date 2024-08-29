@@ -1,12 +1,15 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { AssemblyAI } from 'assemblyai';
 
+if (!process.env.ASSEMBLYAI_API_KEY) {
+  throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
+}
+
 const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY as string
+  apiKey: process.env.ASSEMBLYAI_API_KEY
 });
 
-// Entfernen Sie diese Zeile
-// export const config = { runtime: 'edge' };
+// This line has been removed
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('Transcription status API called');
