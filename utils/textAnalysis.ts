@@ -69,16 +69,19 @@ export async function performBigFiveAnalysis(text: string, language: string): Pr
       throw new Error('Failed to parse OpenAI response');
     }
 
-    // Validate the parsed response
+    // Validate and sanitize the parsed response
     const traits = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+    const sanitizedResponse: AnalysisResult = {};
     for (const trait of traits) {
       if (!parsedResponse[trait] || typeof parsedResponse[trait].score !== 'number' || typeof parsedResponse[trait].explanation !== 'string') {
         console.error(`Invalid data for trait: ${trait}`, parsedResponse[trait]);
-        parsedResponse[trait] = { score: 0, explanation: 'Data not available' };
+        sanitizedResponse[trait] = { score: 0, explanation: 'Data not available' };
+      } else {
+        sanitizedResponse[trait] = parsedResponse[trait];
       }
     }
 
-    return parsedResponse;
+    return sanitizedResponse;
   } catch (error) {
     console.error('Error in performBigFiveAnalysis:', error);
     throw error;
