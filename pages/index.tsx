@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AlertCircle, Brain, Heart, Frown, Smile, DollarSign, Activity, Briefcase, Lightbulb } from 'lucide-react';
 import styles from '../styles/Home.module.css';
 import AnalysisResults from '../components/AnalysisResults';
+import { AnalysisResult } from '../types/analysisTypes';
 
 interface UserData {
   id: string;
@@ -29,14 +30,6 @@ interface Video {
   musicTitle: string;
   caption: string;
   videoUrl: string;
-}
-
-interface AnalysisResult {
-  openness: number;
-  conscientiousness: number;
-  extraversion: number;
-  agreeableness: number;
-  neuroticism: number;
 }
 
 interface PersonalityInsights {
@@ -272,7 +265,7 @@ export default function Home() {
   const getTranscription = async (videoUrl: string): Promise<{ transcription: string, language: string }> => {
     console.log('Getting transcription for video URL:', videoUrl);
     try {
-      // Schritt 1: Transkription starten
+      // Step 1: Start transcription
       const startResponse = await axios.post('/api/transcribe', { 
         video_url: videoUrl,
         language: 'de'
@@ -282,7 +275,7 @@ export default function Home() {
       if (startResponse.data && startResponse.data.transcriptId) {
         const transcriptId = startResponse.data.transcriptId;
         
-        // Schritt 2: Transkription verarbeiten
+        // Step 2: Process transcription
         const processResponse = await axios.post('/api/process-transcription', {
           transcriptId,
         });
@@ -290,33 +283,33 @@ export default function Home() {
         
         if (processResponse.data && processResponse.data.status === 'completed') {
           return {
-            transcription: processResponse.data.transcriptText || 'Transkription erfolgreich, Text nicht verfügbar',
+            transcription: processResponse.data.transcriptText || 'Transcription successful, text not available',
             language: startResponse.data.detectedLanguage
           };
         } else {
-          throw new Error('Transkription nicht erfolgreich abgeschlossen');
+          throw new Error('Transcription not completed successfully');
         }
       } else {
-        throw new Error('Keine Request-ID erhalten');
+        throw new Error('No request ID received');
       }
     } catch (error) {
-      console.error('Fehler bei der Transkription:', error);
+      console.error('Error during transcription:', error);
       if (axios.isAxiosError(error)) {
         console.error('Axios error details:', error.toJSON());
         if (error.response?.data?.error) {
           return {
-            transcription: `Transkription fehlgeschlagen: ${error.response.data.error}`,
+            transcription: `Transcription failed: ${error.response.data.error}`,
             language: 'de'
           };
         } else {
           return {
-            transcription: `Transkription fehlgeschlagen: ${error.message}`,
+            transcription: `Transcription failed: ${error.message}`,
             language: 'de'
           };
         }
       } else {
         return {
-          transcription: `Transkription fehlgeschlagen: ${(error as Error).message}`,
+          transcription: `Transcription failed: ${(error as Error).message}`,
           language: 'de'
         };
       }
@@ -430,7 +423,7 @@ export default function Home() {
       )}
 
       {analysisResult && (
-        <AnalysisResults results={analysisResult} />
+        <AnalysisResults results={analysisResult as AnalysisResult} />
       )}
 
       {personalityInsights && (
