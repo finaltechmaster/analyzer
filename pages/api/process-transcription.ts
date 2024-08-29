@@ -5,11 +5,7 @@ if (!process.env.ASSEMBLYAI_API_KEY) {
   throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
 }
 
-const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY
-});
-
-// export const config = { runtime: 'edge' };
+const client = new AssemblyAI.Client(process.env.ASSEMBLYAI_API_KEY);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('Process Transcription API called');
@@ -27,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     let transcript = await client.transcripts.get(transcriptId);
-    
+
     while (transcript.status !== 'completed' && transcript.status !== 'error') {
       await new Promise(resolve => setTimeout(resolve, 1000));
       transcript = await client.transcripts.get(transcriptId);
