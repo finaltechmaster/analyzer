@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import * as AssemblyAI from '@assemblyai/assemblyai-node-sdk';
+import * as AssemblyAI from 'assemblyai';
 
 if (!process.env.ASSEMBLYAI_API_KEY) {
   throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
