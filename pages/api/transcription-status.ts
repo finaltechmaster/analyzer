@@ -1,13 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import AssemblyAI from 'assemblyai';
+import * as AssemblyAI from 'assemblyai';
 
 if (!process.env.ASSEMBLYAI_API_KEY) {
   throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
 }
 
-const client = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY
-});
+const client = AssemblyAI.default.client(process.env.ASSEMBLYAI_API_KEY);
 
 // This line has been removed
 
