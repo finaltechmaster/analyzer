@@ -9,7 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "assemblyai": "^4.7.0",
+    "assemblyai": "github:assemblyai/assemblyai-node-sdk",
     "axios": "^1.7.5",
     "lucide-react": "^0.436.0",
     "natural": "^8.0.1",

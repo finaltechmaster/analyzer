@@ -1,11 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Client } from '@assemblyai/assemblyai-node-sdk';
+import * as AssemblyAI from '@assemblyai/assemblyai-node-sdk';
 
 if (!process.env.ASSEMBLYAI_API_KEY) {
   throw new Error('ASSEMBLYAI_API_KEY is not set in the environment variables');
 }
 
-const client = new Client(process.env.ASSEMBLYAI_API_KEY);
+const client = new AssemblyAI.Client(process.env.ASSEMBLYAI_API_KEY);
 
 // export const config = { runtime: 'edge' };
 
